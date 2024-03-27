@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 interface IERC721 {
     function balanceOf(address owner) external view returns (uint256 balance);
     function ownerOf(uint256 tokenId) external view returns (address owner);
-    function safeTransferFrom(address from, address to, uint256 tokenId, bytes calldata data) external;
     function safeTransferFrom(address from, address to, uint256 tokenId) external;
     function transferFrom(address from, address to, uint256 tokenId) external;
     function approve(address to, uint256 tokenId) external;
@@ -76,29 +75,51 @@ contract NFinTech is IERC721 {
 
     function setApprovalForAll(address operator, bool approved) external {
         // TODO: please add your implementaiton here
+        if (operator == address(0)) revert ZeroAddress();
+        _operatorApproval[msg.sender][operator]=approved;
+        emit ApprovalForAll(msg.sender,operator,approved);
     }
 
     function isApprovedForAll(address owner, address operator) public view returns (bool) {
         // TODO: please add your implementaiton here
+        return _operatorApproval[owner][operator];
     }
 
     function approve(address to, uint256 tokenId) external {
         // TODO: please add your implementaiton here
+        address owner = ownerOf(tokenId);
+
+        require(owner == msg.sender || _operatorApproval[owner][msg.sender], "No permission");
+
+        _tokenApproval[tokenId]=to;
+
+        emit Approval(owner,to,tokenId);
+
     }
 
     function getApproved(uint256 tokenId) public view returns (address operator) {
         // TODO: please add your implementaiton here
+        require(_owner[tokenId]!=address(0),"doesn't exist");
+        return _tokenApproval[tokenId];
     }
 
     function transferFrom(address from, address to, uint256 tokenId) public {
         // TODO: please add your implementaiton here
-    }
+        require(from != address(0),"error");
+        require(to != address(0),"error");
+        require(_owner[tokenId] == from,"error");
+        _tokenApproval[tokenId] = to;
+        _balances[from] -= 1;
+        _balances[to] += 1;
+        _owner[tokenId] = to;
 
-    function safeTransferFrom(address from, address to, uint256 tokenId, bytes calldata data) public {
-        // TODO: please add your implementaiton here
+        emit Transfer(from, to, tokenId);
     }
 
     function safeTransferFrom(address from, address to, uint256 tokenId) public {
         // TODO: please add your implementaiton here
+        transferFrom(from, to, tokenId);
+        require(IERC721TokenReceiver(address(to)).onERC721Received(from, to, tokenId, "") == IERC721TokenReceiver.onERC721Received.selector, "Error");
     }
 }
+
